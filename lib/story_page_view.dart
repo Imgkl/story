@@ -22,8 +22,10 @@ class StoryPageView extends StatefulWidget {
   StoryPageView({
     Key? key,
     required this.itemBuilder,
+    required this.closeCallback,
     required this.storyLength,
     required this.pageLength,
+    required this.bottomButton,
     this.gestureItemBuilder,
     this.initialStoryIndex,
     this.initialPage = 0,
@@ -38,6 +40,7 @@ class StoryPageView extends StatefulWidget {
     this.indicatorUnvisitedColor = Colors.grey,
     this.indicatorHeight = 2,
     this.showShadow = false,
+    required this.onStoryChanged,
   }) : super(key: key);
 
   ///  visited color of [_Indicators]
@@ -93,6 +96,12 @@ class StoryPageView extends StatefulWidget {
   /// Useful when you need to show any popup over the story
   final ValueNotifier<IndicatorAnimationCommand>? indicatorAnimationController;
 
+  final VoidCallback closeCallback;
+
+  final Widget bottomButton;
+
+  final Function(int) onStoryChanged;
+
   @override
   _StoryPageViewState createState() => _StoryPageViewState();
 }
@@ -123,7 +132,9 @@ class _StoryPageViewState extends State<StoryPageView> {
       child: PageView.builder(
         controller: pageController,
         itemCount: widget.pageLength,
-        onPageChanged: widget.onPageChanged,
+        onPageChanged: (int index) {
+          widget.onPageChanged?.call(pageController!.page!.toInt());
+        },
         itemBuilder: (context, index) {
           final isLeaving = (index - currentPageValue) <= 0;
           final t = (index - currentPageValue);
@@ -141,6 +152,8 @@ class _StoryPageViewState extends State<StoryPageView> {
             child: Stack(
               children: [
                 _StoryPageBuilder.wrapped(
+                  bottomButton: widget.bottomButton,
+                  closeCallback: widget.closeCallback,
                   showShadow: widget.showShadow,
                   indicatorHeight: widget.indicatorHeight,
                   pageLength: widget.pageLength,
@@ -156,6 +169,7 @@ class _StoryPageViewState extends State<StoryPageView> {
                   isPaging: isPaging,
                   onPageLimitReached: widget.onPageLimitReached,
                   itemBuilder: widget.itemBuilder,
+                  onStoryChanged: widget.onStoryChanged,
                   gestureItemBuilder: widget.gestureItemBuilder,
                   indicatorDuration: widget.indicatorDuration,
                   indicatorPadding: widget.indicatorPadding,
@@ -164,15 +178,6 @@ class _StoryPageViewState extends State<StoryPageView> {
                   indicatorUnvisitedColor: widget.indicatorUnvisitedColor,
                   indicatorVisitedColor: widget.indicatorVisitedColor,
                 ),
-                if (isPaging && !isLeaving)
-                  Positioned.fill(
-                    child: Opacity(
-                      opacity: opacity as double,
-                      child: ColoredBox(
-                        color: Colors.black87,
-                      ),
-                    ),
-                  ),
               ],
             ),
           );
@@ -183,23 +188,26 @@ class _StoryPageViewState extends State<StoryPageView> {
 }
 
 class _StoryPageBuilder extends StatefulWidget {
-  const _StoryPageBuilder._({
-    Key? key,
-    required this.storyLength,
-    required this.initialStoryIndex,
-    required this.pageIndex,
-    required this.isCurrentPage,
-    required this.isPaging,
-    required this.itemBuilder,
-    required this.gestureItemBuilder,
-    required this.indicatorDuration,
-    required this.indicatorPadding,
-    required this.indicatorAnimationController,
-    required this.indicatorUnvisitedColor,
-    required this.indicatorVisitedColor,
-    required this.indicatorHeight,
-    required this.showShadow,
-  }) : super(key: key);
+  const _StoryPageBuilder._(
+      {Key? key,
+      required this.storyLength,
+      required this.initialStoryIndex,
+      required this.pageIndex,
+      required this.isCurrentPage,
+      required this.isPaging,
+      required this.itemBuilder,
+      required this.gestureItemBuilder,
+      required this.indicatorDuration,
+      required this.indicatorPadding,
+      required this.indicatorAnimationController,
+      required this.indicatorUnvisitedColor,
+      required this.indicatorVisitedColor,
+      required this.indicatorHeight,
+      required this.showShadow,
+      required this.bottomButton,
+      required this.onStoryChanged,
+      required this.closeCallback})
+      : super(key: key);
   final int storyLength;
   final int initialStoryIndex;
   final int pageIndex;
@@ -214,6 +222,9 @@ class _StoryPageBuilder extends StatefulWidget {
   final Color indicatorUnvisitedColor;
   final double indicatorHeight;
   final bool showShadow;
+  final VoidCallback closeCallback;
+  final Widget bottomButton;
+  final Function(int) onStoryChanged;
 
   static Widget wrapped({
     required int pageIndex,
@@ -234,6 +245,9 @@ class _StoryPageBuilder extends StatefulWidget {
     required Color indicatorUnvisitedColor,
     required double indicatorHeight,
     required bool showShadow,
+    required VoidCallback closeCallback,
+    required Widget bottomButton,
+    required Function(int) onStoryChanged,
   }) {
     return MultiProvider(
       providers: [
@@ -243,6 +257,7 @@ class _StoryPageBuilder extends StatefulWidget {
         ChangeNotifierProvider(
           create: (_context) => _StoryStackController(
             storyLength: storyLength,
+            onStoryChanged: onStoryChanged,
             onPageBack: () {
               if (pageIndex != 0) {
                 animateToPage(pageIndex - 1);
@@ -262,6 +277,9 @@ class _StoryPageBuilder extends StatefulWidget {
         ),
       ],
       child: _StoryPageBuilder._(
+        onStoryChanged: onStoryChanged,
+        bottomButton: bottomButton,
+        closeCallback: closeCallback,
         showShadow: showShadow,
         storyLength: storyLength,
         initialStoryIndex: initialStoryIndex,
@@ -361,30 +379,11 @@ class _StoryPageBuilderState extends State<_StoryPageBuilder>
       alignment: Alignment.topLeft,
       children: [
         Positioned.fill(
-          child: ColoredBox(
-            color: Theme.of(context).scaffoldBackgroundColor,
-          ),
-        ),
-        Positioned.fill(
           child: widget.itemBuilder(
             context,
             widget.pageIndex,
             context.watch<_StoryStackController>().value,
           ),
-        ),
-        Container(
-          height: 50,
-          decoration: widget.showShadow
-              ? BoxDecoration(
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      spreadRadius: 10,
-                      blurRadius: 20,
-                    ),
-                  ],
-                )
-              : null,
         ),
         _Indicators(
           indicatorHeight: widget.indicatorHeight,
@@ -408,6 +407,28 @@ class _StoryPageBuilderState extends State<_StoryPageBuilder>
               ) ??
               const SizedBox.shrink(),
         ),
+        Positioned(
+          bottom: 10,
+          left: MediaQuery.of(context).size.width * 0.06,
+          child: SafeArea(
+            child: widget.bottomButton,
+          ),
+        ),
+        Positioned(
+          right: 10,
+          child: SafeArea(
+            child: GestureDetector(
+              onTap: widget.closeCallback,
+              child: Padding(
+                padding: const EdgeInsets.only(top: 8.0),
+                child: Icon(
+                  Icons.close,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ),
+        )
       ],
     );
   }
@@ -555,23 +576,25 @@ class _IndicatorsState extends State<_Indicators> {
         storyImageLoadingController.value != StoryImageLoadingState.loading) {
       widget.animationController!.forward(from: 0);
     }
-    return Padding(
-      padding: widget.padding,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: List.generate(
-          widget.storyLength,
-          (index) => _Indicator(
-            index: index,
-            indicatorHeight: widget.indicatorHeight,
-            value: (index == currentStoryIndex)
-                ? indicatorAnimation.value
-                : (index > currentStoryIndex)
-                    ? 0
-                    : 1,
-            indicatorVisitedColor: widget.indicatorVisitedColor,
-            indicatorUnvisitedColor: widget.indicatorUnvisitedColor,
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.only(left: 15.0, right: 15),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: List.generate(
+            widget.storyLength,
+            (index) => _Indicator(
+              index: index,
+              indicatorHeight: widget.indicatorHeight,
+              value: (index == currentStoryIndex)
+                  ? indicatorAnimation.value
+                  : (index > currentStoryIndex)
+                      ? 0
+                      : 1,
+              indicatorVisitedColor: widget.indicatorVisitedColor,
+              indicatorUnvisitedColor: widget.indicatorUnvisitedColor,
+            ),
           ),
         ),
       ),
@@ -622,11 +645,13 @@ class _StoryStackController extends ValueNotifier<int> {
     required this.storyLength,
     required this.onPageForward,
     required this.onPageBack,
+    required this.onStoryChanged,
     initialStoryIndex = 0,
   }) : super(initialStoryIndex);
   final int storyLength;
   final VoidCallback onPageForward;
   final VoidCallback onPageBack;
+  final Function(int) onStoryChanged;
 
   int get limitIndex => storyLength - 1;
 
@@ -638,6 +663,7 @@ class _StoryStackController extends ValueNotifier<int> {
     } else {
       value++;
       restartAnimation?.call();
+      onStoryChanged(value + 1);
     }
   }
 
@@ -647,6 +673,7 @@ class _StoryStackController extends ValueNotifier<int> {
     } else {
       value--;
     }
+    onStoryChanged(value + 1);
   }
 }
 
