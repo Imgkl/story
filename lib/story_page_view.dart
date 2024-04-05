@@ -25,7 +25,7 @@ class StoryPageView extends StatefulWidget {
     required this.closeCallback,
     required this.storyLength,
     required this.pageLength,
-    required this.bottomButton,
+    this.bottomButton,
     this.gestureItemBuilder,
     this.initialStoryIndex,
     this.initialPage = 0,
@@ -98,7 +98,7 @@ class StoryPageView extends StatefulWidget {
 
   final VoidCallback closeCallback;
 
-  final Widget bottomButton;
+  final Widget? bottomButton;
 
   final Function(int) onStoryChanged;
 
@@ -204,7 +204,7 @@ class _StoryPageBuilder extends StatefulWidget {
       required this.indicatorVisitedColor,
       required this.indicatorHeight,
       required this.showShadow,
-      required this.bottomButton,
+      this.bottomButton,
       required this.onStoryChanged,
       required this.closeCallback})
       : super(key: key);
@@ -223,7 +223,7 @@ class _StoryPageBuilder extends StatefulWidget {
   final double indicatorHeight;
   final bool showShadow;
   final VoidCallback closeCallback;
-  final Widget bottomButton;
+  final Widget? bottomButton;
   final Function(int) onStoryChanged;
 
   static Widget wrapped({
@@ -246,7 +246,7 @@ class _StoryPageBuilder extends StatefulWidget {
     required double indicatorHeight,
     required bool showShadow,
     required VoidCallback closeCallback,
-    required Widget bottomButton,
+    Widget? bottomButton,
     required Function(int) onStoryChanged,
   }) {
     return MultiProvider(
@@ -407,13 +407,15 @@ class _StoryPageBuilderState extends State<_StoryPageBuilder>
               ) ??
               const SizedBox.shrink(),
         ),
-        Positioned(
-          bottom: 10,
-          left: MediaQuery.of(context).size.width * 0.06,
-          child: SafeArea(
-            child: widget.bottomButton,
-          ),
-        ),
+        widget.bottomButton != null
+            ? Positioned(
+                bottom: 10,
+                left: MediaQuery.of(context).size.width * 0.06,
+                child: SafeArea(
+                  child: widget.bottomButton!,
+                ),
+              )
+            : SizedBox.shrink(),
         Positioned(
           right: 10,
           child: SafeArea(
